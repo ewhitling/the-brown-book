@@ -46,7 +46,12 @@ export interface FactualFixFormState {
   target_type: ClaimTargetType | '';
   target_id: string;
   field: string;
-  /** Auto-prefilled from item; read-only in the form. */
+  /**
+   * The current DB value of the field being corrected.
+   * Must be entered manually — PassageItem does not carry individual field
+   * values, so auto-prefill is not possible. Used by apply_corrections as a
+   * safety guard: the correction is rejected if the DB field no longer matches.
+   */
   old_value: string;
   new_value: string;
   rationale: string;
