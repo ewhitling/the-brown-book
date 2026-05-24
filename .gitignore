@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[oc]
+.venv
+*.egg-info
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# ao orchestrator bookkeeping
+.ao/
+
+# Web build artifacts
+web/node_modules/
+web/dist/
+web/static/botns.db
+
+# SQLite transient state
+*.db-shm
+*.db-wal
+*.db-journal
+
+# OS
+.DS_Store

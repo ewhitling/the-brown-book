@@ -1,0 +1,464 @@
+sprint: "brown-book-v1"
+description: "First buildable version of The Brown Book — the-brown-book public repo side. Adds the SPA, the corrections workflow, and the deploy pipeline. Assumes analysis-botns has completed TASK-001..TASK-010 (see analysis-botns/tasks.yaml) and that `make publish` has populated this repo's data/, core/, corrections/seed/. This file is authored in analysis-botns and ships to the-brown-book at TASK-011 as `tasks.yaml`."
+epic_issue: null
+
+# All tasks run in the-brown-book. Task IDs continue from analysis-botns
+# (TASK-011..TASK-030) for cross-file traceability — ao should not assume
+# IDs start at 001. Default pipeline overrides where tests/review don't add
+# value (scaffolding, config, CSS-heavy components).
+
+tasks:
+
+  # ────────────────────────────────────────────────────────────────────
+  # B. Bootstrap + cross-repo sync (continued from analysis-botns)
+  # ────────────────────────────────────────────────────────────────────
+
+  - id: TASK-011
+    title: Create the-brown-book public repo skeleton
+    type: backend
+    description: |
+      One-time manual setup of the new public GitHub repo.
+        - github.com/ewhitling/the-brown-book (public visibility)
+        - Clone to ../the-brown-book (relative to analysis-botns checkout)
+        - Initial commit with:
+          - pyproject.toml (deps: pydantic, pyyaml)
+          - uv.lock
+          - .gitignore (web/dist, web/node_modules, web/static/botns.db,
+            __pycache__, .venv)
+          - .env.example (empty)
+          - README.md (public intro, links back to analysis-botns for pipeline)
+          - CONTRIBUTING.md (skeleton — filled out by TASK-030)
+          - Makefile (skeleton with apply-corrections + web + build placeholders)
+          - empty directories: data/, corrections/, corrections/seed/, core/, web/
+          - PRD.md, DESIGN.md, SPEC.md copied from analysis-botns
+          - This file (tasks.brownbook.yaml) copied as tasks.yaml
+          - ao.yaml copied from analysis-botns
+    acceptance_criteria:
+      - "the-brown-book exists on GitHub, public visibility"
+      - "Initial commit on main contains the skeleton above"
+      - "README explains: what this is, link to analysis-botns, placeholder for live tool URL"
+      - "tasks.yaml + ao.yaml present so ao can be invoked here"
+    depends_on: []
+    pipeline: [builder, committer]
+
+  - id: TASK-012
+    title: First make publish — initial sync into the-brown-book
+    type: backend
+    description: |
+      Run `make publish` from analysis-botns (requires TASK-010 there to be
+      complete). Verify the-brown-book gets:
+        data/botns.db, core/models/, core/apply_corrections.py,
+        core/horizon.py, corrections/seed/
+      Run apply_corrections in the-brown-book to verify the vendored layer
+      works against the vendored DB. Leave the synced files in the working
+      tree for the committer agent (do NOT run `git commit` from the builder).
+      `make publish` is run manually before this task; this task validates
+      the result and lets ao's committer agent land it.
+    acceptance_criteria:
+      - "the-brown-book main branch contains the synced files"
+      - "uv run python -m core.apply_corrections runs successfully here"
+      - "uv run pytest tests/ passes (after copying tests from analysis-botns or writing minimal smoke test)"
+    depends_on: [TASK-011]
+    pipeline: [builder, committer]
+
+  # ────────────────────────────────────────────────────────────────────
+  # C. SPA scaffold + early deploy validation
+  # ────────────────────────────────────────────────────────────────────
+
+  - id: TASK-013
+    title: Scaffold web/ — Svelte + Vite + TypeScript + sql.js
+    type: frontend
+    description: |
+      Initialize web/ subdirectory:
+        - npm init, package.json with deps: svelte@4, vite, typescript, sql.js
+        - svelte.config.js, vite.config.ts (configure ?raw for .sql files,
+          copy data/botns.db into web/static/ on build via a small plugin)
+        - tsconfig.json (strict)
+        - index.html (Vite entry; load EB Garamond + Inter from Google Fonts)
+        - src/main.ts (mounts App)
+        - src/App.svelte (hello-world placeholder)
+        - src/app.css (empty, ready for TASK-019)
+        - web/static/favicon.svg
+      `npm run dev` serves App on localhost:5173. `npm run build` produces
+      web/dist/.
+    acceptance_criteria:
+      - "npm install in web/ completes without errors"
+      - "npm run dev serves the app on localhost:5173"
+      - "npm run build produces web/dist/ with the static bundle"
+      - "Vite config copies data/botns.db into web/static/botns.db at build time"
+      - "Vite config supports importing .sql files via ?raw"
+    depends_on: [TASK-012]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-014
+    title: Cloudflare Pages setup — hello-world deploy + PR previews
+    type: backend
+    description: |
+      One-time manual config of Cloudflare Pages:
+        - Create project, connect to GitHub repo (the-brown-book)
+        - Build command: `make build`
+        - Build output: web/dist/
+        - Env vars: VITE_REPO_OWNER=ewhitling, VITE_REPO_NAME=the-brown-book,
+          VITE_DEPLOY_ENV=prod (with preview override)
+        - Add ANTHROPIC_API_KEY as a defensive env var (apply-corrections
+          doesn't use it but extraction scripts would if ever invoked)
+      First deploy is the hello-world App from TASK-013. Validates the deploy
+      pipeline before any UI components land. Test by opening a sample PR and
+      verifying a preview URL is generated.
+    acceptance_criteria:
+      - "Production deploy succeeds; hello-world loads at <project>.pages.dev"
+      - "Sample PR generates a preview URL automatically"
+      - "Bundle includes botns.db copied from data/"
+    depends_on: [TASK-013]
+    pipeline: [builder, committer]
+
+  - id: TASK-015
+    title: make build + CI size-budget checks
+    type: backend
+    description: |
+      Makefile target `build`:
+        apply-corrections  (uv run python -m core.apply_corrections)
+        cp data/botns.db web/static/botns.db
+        cd web && npm ci && npm run build
+        scripts/check-size-budgets.sh
+      check-size-budgets.sh fails the build (non-zero exit) if:
+        - data/botns.db > 25MB
+        - web/dist total transferred bytes > 6MB (sum + check known asset sizes)
+      Make sure CF Pages' build environment runs `make build` successfully
+      end-to-end.
+    acceptance_criteria:
+      - "make build runs end-to-end in CF Pages build environment"
+      - "Bundle size check fails loudly when intentionally tripped (test by setting threshold to 1KB)"
+      - "DB size check fails loudly when intentionally tripped"
+    depends_on: [TASK-014]
+    pipeline: [builder, committer]
+
+  # ────────────────────────────────────────────────────────────────────
+  # D. SPA data layer
+  # ────────────────────────────────────────────────────────────────────
+
+  - id: TASK-016
+    title: web/src/lib/types.ts + assertSchema()
+    type: frontend
+    description: |
+      Hand-mirror the Pydantic models from core/models/ into TypeScript:
+        BookChapter, ReadingPosition, Theory, PassageItem, PassagesPanel,
+        TimelineBook, TimelineChapter, TimelineScene, TimelinePanel,
+        CharacterNode, CharacterEdge, CharactersPanel, QueryResult,
+        Correction (discriminated union).
+      Also implement assertSchema(db: Database): boolean that runs at boot
+      and verifies expected tables/columns exist (chapters, scenes, characters,
+      factual_claims, evidence_fts, plus the revealed_at_* columns). Logs to
+      console with clear error on drift; tool continues to load but degrades.
+    acceptance_criteria:
+      - "Every Pydantic model has a TS counterpart in types.ts"
+      - "tsc --strict passes"
+      - "assertSchema() returns true on the live botns.db; logs error if expected column missing (test by spinning up a fixture)"
+    depends_on: [TASK-013]
+
+  - id: TASK-017
+    title: web/src/lib/db.ts — sql.js init + all query functions
+    type: frontend
+    description: |
+      Implement:
+        loadDatabase(): Promise<Database>
+        fetchPassages(theory, position, topN=50): Promise<PassagesPanel>
+        fetchTimeline(theory, position): Promise<TimelinePanel>
+        fetchCharacters(theory, position): Promise<CharactersPanel>  (nodes + edges)
+        fetchQueryResult(theory, position): Promise<QueryResult>  (composes + had_matches_past_horizon)
+        countMatchesPastHorizon(theory, position): Promise<number>
+        lookupItem(itemType, itemId): Promise<unknown>
+
+      SQL lives in web/src/lib/sql/*.sql (4 files per SPEC.md §2), imported
+      via Vite's ?raw. Each fetch function:
+        - Prepares + binds parameters
+        - Executes against the loaded DB
+        - JS post-pass computes past_horizon by comparing revealed_at_* to position
+        - Returns typed result
+      In-memory LRU cache (Map keyed by `${theory}::${position.compact()}`,
+      max 50 entries) wraps fetchQueryResult.
+    acceptance_criteria:
+      - "loadDatabase() returns a working sql.js Database for the static botns.db"
+      - "fetchPassages('dorcas', {book_id:2,chapter_number:5}) returns ranked items with correct past_horizon flags"
+      - "fetchTimeline returns all 183 chapters grouped by book (even 0-match chapters)"
+      - "fetchCharacters returns nodes sorted by scene_count_matching DESC"
+      - "Schema-introspection check passes on the live botns.db"
+      - "LRU cache returns identical result on repeat call (compare by reference)"
+    depends_on: [TASK-016]
+
+  - id: TASK-018
+    title: web/src/lib/storage.ts + position.ts
+    type: frontend
+    description: |
+      storage.ts:
+        saveReadingPosition(position), loadReadingPosition()
+        recordReveal(itemType, itemId), loadReveals(), isRevealed(itemType, itemId)
+        Schema-versioned keys: bb:v1:position, bb:v1:revealed
+      position.ts:
+        BookChapter helpers (compare, compact, fromCompact)
+        URL encoding (encodeWorkshopURL, decodeWorkshopURL — match SPEC.md urls.py)
+        Compose / decompose URL params (q + pos)
+    acceptance_criteria:
+      - "saveReadingPosition + loadReadingPosition roundtrip preserves the position"
+      - "recordReveal is idempotent (no duplicates)"
+      - "BookChapter.compact roundtrips through fromCompact"
+      - "Decoding ?q=Is+Dorcas&pos=B2C5 yields the expected WorkshopURL"
+    depends_on: [TASK-016]
+
+  # ────────────────────────────────────────────────────────────────────
+  # E. Visual layer + scenes
+  # ────────────────────────────────────────────────────────────────────
+
+  - id: TASK-019
+    title: app.css — palette, typography, layout primitives
+    type: frontend
+    description: |
+      Global stylesheet matching DESIGN.md visual direction.
+        - CSS variables for palette (--paper #faf7f0, --ink #1a1a1a,
+          --muted #6b665e, --whisper #a8a399, --rule #d8d4cb,
+          --accent #3b1d6e, plus accent-soft, accent-bg, paper-deep)
+        - Google Fonts import for EB Garamond + Inter (preconnect)
+        - Layout helpers: .shell (max-width 1180px), .panels grid
+        - Fog hatching pattern (repeating-linear-gradient at ~6% opacity)
+        - Tag (revealed-tag) treatment for ↪ past your reading position
+      Visually align with mockup.html. No animation for animation's sake;
+      120ms opacity transitions on panel updates only.
+    acceptance_criteria:
+      - "Visual diff against mockup.html palette + type is acceptably close"
+      - "Fog hatching renders in Chrome, Safari, Firefox"
+      - "tsc + eslint pass"
+    depends_on: [TASK-013]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-020
+    title: Entry.svelte (Scene 1)
+    type: frontend
+    description: |
+      First-visit scene per DESIGN.md Scene 1 + mockup.html.
+        - Page title "The Brown Book", neutral descriptor
+        - Book dropdown (populated from books table via fetchAll('SELECT id, title FROM books'))
+        - Chapter dropdown (filtered by selected book)
+        - Continue button — saves position to localStorage, navigates to /workshop
+        - Footer chrome: GitHub + About links
+      DB load happens in background during this scene; by Continue click,
+      DB is ready. If user is fast and DB isn't ready, button shows a subtle
+      loading state.
+    acceptance_criteria:
+      - "Book/chapter dropdowns populated from DB"
+      - "Selecting a book filters the chapter dropdown correctly"
+      - "Continue saves position to localStorage and routes to /workshop"
+      - "Returning visit (localStorage has position) skips Entry and lands at /workshop"
+    depends_on: [TASK-017, TASK-018, TASK-019]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-021
+    title: App.svelte routing + Workshop.svelte shell
+    type: frontend
+    description: |
+      App.svelte: hash-based router with three routes: #/ (Entry or
+      Workshop based on localStorage), #/workshop, #/about. Boot sequence
+      per SPEC.md §4: URL params → localStorage → default Entry.
+      Workshop.svelte: shell with theory input (debounced 150ms),
+      position chip (click → PositionPicker overlay), three panel slots.
+      Reactive: theory + position changes trigger fetchQueryResult; result
+      drives panel rendering. Handles three states: empty, populated, no-results.
+    acceptance_criteria:
+      - "Boot from ?q=...&pos=B2C5 lands directly in populated workshop"
+      - "Theory input debounces at 150ms; only one query in flight at a time"
+      - "Empty / populated / no-results states render correctly"
+      - "No-results state shows three action links (refine / update position / look past horizon)"
+    depends_on: [TASK-020]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-022
+    title: PassagesPanel.svelte
+    type: frontend
+    description: |
+      Renders PassagesPanel data. Per item:
+        - Type-tagged byline (e.g. "scene · Book 1, Ch 21 · 'The Lake of Birds'")
+        - Passage text in serif
+        - Hover-revealed Flag affordance (icon button → opens CorrectionPanel)
+        - First item gets featured treatment (drop-cap on first letter)
+      At bottom, when had_matches_past_horizon: fog summary
+      "N more matches past your reading position. Look ahead →"
+      (clicking expands fogged items inline with the ↪ tag).
+      Revealed items (from localStorage) appear with permanent ↪ tag.
+    acceptance_criteria:
+      - "Items render matching mockup.html aesthetic"
+      - "Flag click opens CorrectionPanel with item context"
+      - "Look-ahead expands fogged items inline (or opens LookAheadModal — pick during build, document choice)"
+      - "Revealed items persist their tag across page reload"
+    depends_on: [TASK-021]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-023
+    title: TimelinePanel.svelte (flagship visual)
+    type: frontend
+    description: |
+      Per SPEC.md §1 TimelinePanel shape + mockup.html.
+        - One row per book (5 rows for v1)
+        - Per chapter: a cell, height-and-fill = match density
+        - Diagonal hatching overlay on fogged chapters (past reading position)
+        - Hover tooltip: chapter title + match count
+        - Legend at bottom (evidence color + fog hatching swatches)
+      Click a chapter cell: deferred to v2 (no-op for v1, or scroll to first
+      passage in that chapter — pick one).
+    acceptance_criteria:
+      - "All 5 books + all ~183 chapters render"
+      - "Fog hatching applies precisely at the reading_position boundary"
+      - "Match-density bars distinguishable across at least 4 levels"
+      - "Renders correctly when theory has 0 matches (all chapters gray)"
+    depends_on: [TASK-021]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-024
+    title: CharactersPanel.svelte (list-only for v1)
+    type: frontend
+    description: |
+      Sorted list of CharacterNodes (scene_count_matching DESC).
+      Per entry:
+        - canonical_name
+        - first_appearance breadcrumb (e.g. "B1 C21" or "first in B3" for fogged)
+        - scene_count
+      Fogged characters (mentioned_at past horizon) get dimmed treatment +
+      ✕ glyph prefix. Edges data from QueryResult is ignored (v2 graph).
+    acceptance_criteria:
+      - "List sorted by scene_count_matching DESC"
+      - "First-appearance breadcrumb renders for all entries"
+      - "Fogged characters visually distinct (lower opacity, prefix)"
+      - "Empty state when no characters match"
+    depends_on: [TASK-021]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-025
+    title: PositionPicker.svelte (Scene 7)
+    type: frontend
+    description: |
+      Compact overlay anchored to the position chip in Workshop.
+        - Book dropdown
+        - Chapter dropdown (filtered by selected book)
+        - Update button → save to localStorage, update URL `pos` param,
+          close overlay, trigger panel refetch
+      Initial state populated from current ReadingPosition.
+    acceptance_criteria:
+      - "Chapter dropdown updates when book changes"
+      - "Update closes overlay, panels reflow, URL pos param updates"
+      - "ESC closes without saving"
+    depends_on: [TASK-021]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-026
+    title: LookAheadModal.svelte (Scene 5)
+    type: frontend
+    description: |
+      Confirmation modal when reader clicks Look-ahead on a fogged item.
+        - Item preview (passage byline + first ~200 chars of text)
+        - "Cancel" / "Show it anyway" actions
+        - On Show: recordReveal(itemType, itemId), close modal, the item
+          becomes visible in its source panel with permanent ↪ tag
+      Visual treatment per mockup.html (paper card, soft shadow, accent border
+      on item preview).
+    acceptance_criteria:
+      - "Confirm reveals the item and adds ↪ past your reading position tag"
+      - "Revealed item persists across page reload (via localStorage)"
+      - "Cancel closes modal without state change"
+    depends_on: [TASK-022]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-027
+    title: CorrectionPanel.svelte (Scene 6) + GH PR URL builder
+    type: frontend
+    description: |
+      Slide-in panel when reader clicks Flag on an item.
+        - Item context (locked, read-only) — title byline + truncated text
+        - Type selector: Merge two entities / Rename / Factual fix
+        - Conditional fields per type:
+            merge: target_type (auto-detected if possible), source_ids,
+                   into_id, rationale
+            rename: target_type, target_id (auto-prefilled), new_name, rationale
+            factual_fix: field selector (auto-detected from item type),
+                         old_value (auto-prefilled, read-only), new_value, rationale
+        - Submit button: "Open PR on GitHub"
+      web/src/lib/corrections.ts:
+        - composeCorrection(formState) -> Correction
+        - serializeYAML(correction) -> string
+        - buildGitHubPRURL(correction, repoOwner, repoName) -> string
+        - On submit: window.open(url, '_blank')
+      Validates Correction with TS-side equivalent of Pydantic union before
+      constructing URL.
+    acceptance_criteria:
+      - "Each correction type renders its expected field subset"
+      - "Generated YAML validates against Pydantic Correction union when round-tripped through apply_corrections locally"
+      - "GitHub PR URL opens new tab with pre-filled filename + body"
+      - "Submitting without required fields surfaces inline validation"
+    depends_on: [TASK-016, TASK-022]
+    pipeline: [builder, reviewer, committer]
+
+  - id: TASK-028
+    title: About.svelte (Scene 8)
+    type: frontend
+    description: |
+      Public-facing colophon per DESIGN.md Scene 8.
+      Sections:
+        - What this is (one paragraph)
+        - Principles (surface evidence, never synthesize)
+        - Reading position & fog (what the fog means; how to look ahead)
+        - Corrections (how the PR loop works; link to CONTRIBUTING.md)
+        - Source & contributors (link to repo; acknowledgments — Gene Wolfe,
+          r/genewolfe, named human contributors)
+      Wiki tone. No marketing. Reachable from footer chrome in every scene.
+    acceptance_criteria:
+      - "All sections present"
+      - "Links to GitHub repo + CONTRIBUTING.md work"
+      - "Footer chrome on Entry / Workshop / About all link here"
+    depends_on: [TASK-019]
+    pipeline: [builder, reviewer, committer]
+
+  # ────────────────────────────────────────────────────────────────────
+  # F. Verification + docs
+  # ────────────────────────────────────────────────────────────────────
+
+  - id: TASK-029
+    title: End-to-end smoke test (file a real correction → preview → prod)
+    type: backend
+    description: |
+      Manual smoke test of the full loop:
+        1. Open the deployed Brown Book
+        2. Find a real correction worth filing (e.g. a character name variant)
+        3. Use the Flag affordance to compose a correction
+        4. Submit the PR (lands as YAML in corrections/)
+        5. Verify CF Pages PR preview shows the correction applied
+        6. Merge to main
+        7. Verify prod redeploys with the correction
+        8. Verify reading-position UI behaves correctly when the correction
+           affects items at/around your horizon
+      Document any friction or bugs as follow-up tasks.
+    acceptance_criteria:
+      - "End-to-end PR loop completes with no manual intervention beyond the merge click"
+      - "Preview deploy reflects the proposed correction's effect"
+      - "Post-merge prod deploy is live within CF Pages' SLA (~minutes)"
+      - "Any friction surfaced as a follow-up issue"
+    depends_on: [TASK-022, TASK-023, TASK-024, TASK-025, TASK-026, TASK-027, TASK-028]
+    pipeline: [builder, committer]
+
+  - id: TASK-030
+    title: README + CONTRIBUTING polish
+    type: backend
+    description: |
+      Final pass on README.md and CONTRIBUTING.md.
+      README:
+        - Quiet intro (the principles), link to live site, link to repo
+        - Section: "How this tool works" — short version, with link to About
+        - Section: "Where the data comes from" — link to analysis-botns
+        - Acknowledgments
+      CONTRIBUTING:
+        - Three correction types explained with copy-pasteable YAML examples
+        - PR template/checklist
+        - Reviewer guidelines (when to merge, when to ask for changes)
+      Tone per DESIGN.md: community, factual, no marketing.
+    acceptance_criteria:
+      - "Both files reviewed for tone (community, not marketing)"
+      - "All example YAML in CONTRIBUTING validates against the Correction union"
+      - "Links live and correct"
+    depends_on: [TASK-029]
+    pipeline: [builder, reviewer, committer]
