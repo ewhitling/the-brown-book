@@ -1,1 +1,1 @@
-feat(db): implement loadDatabase and all query functions (TASK-017)
+feat(characters-panel): add CharactersPanel.svelte with sorted list, breadcrumbs, and fog treatment

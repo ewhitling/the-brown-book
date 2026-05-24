@@ -1,1 +1,1 @@
-feat(entry): fix books query to use correct PK column name
+feat(timeline): add TimelinePanel.svelte — bar-chart timeline with fog + density levels
