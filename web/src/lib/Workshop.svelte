@@ -25,6 +25,7 @@
   import CharactersPanel from './CharactersPanel.svelte';
   import TimelinePanel from './TimelinePanel.svelte';
   import PositionPicker from './PositionPicker.svelte';
+  import PassagesPanel from './components/PassagesPanel.svelte';
 
   // ─── Init from URL or localStorage ──────────────────────────────────────────
 
@@ -271,19 +272,10 @@
               {queryResult.passages_panel.total_matching} match{queryResult.passages_panel.total_matching === 1 ? '' : 'es'}
               · showing {queryResult.passages_panel.showing}
             </p>
-            <!-- PassagesPanel.svelte replaces this list in TASK-022 -->
-            {#each queryResult.passages_panel.items as item (item.id)}
-              <article class="passage-item {item.past_horizon ? 'fog' : ''}">
-                <header class="passage-meta meta">
-                  <span class="type-tag">{item.type}</span>
-                  <span>
-                    Book {item.chapter.book_id}, Ch. {item.chapter.number}
-                    — {item.chapter.title}
-                  </span>
-                </header>
-                <p class="passage-text">{item.text}</p>
-              </article>
-            {/each}
+            <PassagesPanel
+              panel={queryResult.passages_panel}
+              hadMatchesPastHorizon={queryResult.had_matches_past_horizon}
+            />
           {/if}
         </div>
       </section>

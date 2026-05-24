@@ -8,19 +8,16 @@
   - Passage text in EB Garamond serif
   - Hover-revealed Flag affordance (⚑) that opens CorrectionPanel
   - Drop-cap on the first visible item (featured treatment)
-  - Fog summary at bottom when past-horizon matches exist
-  - Look-ahead: inline expansion of fogged items (see ADR 11.1)
+  - Fogged items shown individually with fog overlay + per-item Look ahead affordance
+  - LookAheadModal (TASK-026) confirms per-item reveal before recording to localStorage
   - Revealed items from localStorage persist with permanent ↪ tag
-
-  Architectural note (ADR 11.1): look-ahead is inline expansion, not a
-  per-item modal. All fogged items expand together on a single click and
-  are recorded to localStorage immediately so the tag persists on reload.
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { PassageItem, PassagesPanel } from '../types';
-  import { isRevealed, recordReveal } from '../storage';
+  import { loadReveals, recordReveal } from '../storage';
   import CorrectionPanel from './CorrectionPanel.svelte';
+  import LookAheadModal from './LookAheadModal.svelte';
 
   export let panel: PassagesPanel;
   export let hadMatchesPastHorizon: boolean = false;
@@ -43,9 +40,12 @@
 
   /** Re-seed revealedSet from localStorage for the current panel items. */
   function seedReveals(): void {
+    const stored = loadReveals();
     revealedSet = new Set(
       panel.items
-        .filter((item) => isRevealed(item.type, numericId(item.id)))
+        .filter((item) =>
+          stored.some((r) => r.type === item.type && r.id === numericId(item.id)),
+        )
         .map((item) => item.id),
     );
   }
@@ -57,7 +57,7 @@
   let prevPanel = panel;
   $: if (panel !== prevPanel) {
     prevPanel = panel;
-    showFogged = false;
+    lookaheadItem = null;
     seedReveals();
   }
 
@@ -76,30 +76,32 @@
     (item) => item.past_horizon && !revealedSet.has(item.id),
   );
 
-  /** Whether to show the fog footer (fogged items present, or flag from parent). */
-  $: hasFog = foggedItems.length > 0 || hadMatchesPastHorizon;
-
   /** First visible item gets drop-cap featured treatment. */
   $: featuredId = visibleItems[0]?.id ?? null;
 
   // ─── Interaction state ────────────────────────────────────────────────────────
 
-  /** Whether the user has clicked "Look ahead" in this session. */
-  let showFogged = false;
+  /** The fogged item pending reveal in the look-ahead modal, or null. */
+  let lookaheadItem: PassageItem | null = null;
 
   /** The item currently open in the correction panel, or null. */
   let correctionItem: PassageItem | null = null;
 
   // ─── Event handlers ───────────────────────────────────────────────────────────
 
-  function onLookAhead(): void {
-    // Record all currently-fogged items to localStorage before expanding.
-    for (const item of foggedItems) {
-      recordReveal(item.type, numericId(item.id));
-    }
-    // Merge into revealedSet so they render with ↪ tag immediately.
-    revealedSet = new Set([...revealedSet, ...foggedItems.map((i) => i.id)]);
-    showFogged = true;
+  function onLookAheadItem(item: PassageItem): void {
+    lookaheadItem = item;
+  }
+
+  function onConfirmReveal(): void {
+    if (!lookaheadItem) return;
+    recordReveal(lookaheadItem.type, numericId(lookaheadItem.id));
+    revealedSet = new Set([...revealedSet, lookaheadItem.id]);
+    lookaheadItem = null;
+  }
+
+  function onCancelReveal(): void {
+    lookaheadItem = null;
   }
 
   function onFlag(item: PassageItem): void {
@@ -121,6 +123,7 @@
     >
       <header class="passage-byline meta">
         <span class="type-tag">{item.type}</span>
+        <span class="byline-sep">&middot;</span>
         <span class="passage-location">
           Book {item.chapter.book_id}, Ch {item.chapter.number}
           &middot; &lsquo;{item.chapter.title}&rsquo;
@@ -145,6 +148,7 @@
       <header class="passage-byline meta">
         <span class="revealed-tag">&#8618;</span>
         <span class="type-tag">{item.type}</span>
+        <span class="byline-sep">&middot;</span>
         <span class="passage-location">
           Book {item.chapter.book_id}, Ch {item.chapter.number}
           &middot; &lsquo;{item.chapter.title}&rsquo;
@@ -163,43 +167,42 @@
     </article>
   {/each}
 
-  <!-- ── Session-expanded fogged items (after "Look ahead" click) ──────────── -->
-  {#if showFogged}
-    {#each foggedItems as item (item.id)}
-      <article class="passage-item passage-item--revealed">
-        <header class="passage-byline meta">
-          <span class="revealed-tag">&#8618;</span>
-          <span class="type-tag">{item.type}</span>
-          <span class="passage-location">
-            Book {item.chapter.book_id}, Ch {item.chapter.number}
-            &middot; &lsquo;{item.chapter.title}&rsquo;
-          </span>
-        </header>
+  <!-- ── Fogged items — visible with fog overlay, revealed per item via modal ── -->
+  {#each foggedItems as item (item.id)}
+    <article class="passage-item passage-item--fogged">
+      <header class="passage-byline meta">
+        <span class="type-tag">{item.type}</span>
+        <span class="byline-sep">&middot;</span>
+        <span class="passage-location">
+          Book {item.chapter.book_id}, Ch {item.chapter.number}
+          &middot; &lsquo;{item.chapter.title}&rsquo;
+        </span>
+      </header>
+      <div class="fogged-text fog">
         <p class="passage-text">{item.text}</p>
-        <button
-          class="flag-btn ui"
-          type="button"
-          title="Suggest a correction"
-          aria-label="Flag this passage for correction"
-          on:click={() => onFlag(item)}
-        >
-          &#9873;
-        </button>
-      </article>
-    {/each}
-  {/if}
-
-  <!-- ── Fog summary footer ─────────────────────────────────────────────────── -->
-  {#if hasFog && !showFogged}
-    <footer class="fog-footer meta">
-      {foggedItems.length} more match{foggedItems.length === 1 ? '' : 'es'} past your reading position.
-      <button class="look-ahead-btn ui" type="button" on:click={onLookAhead}>
+      </div>
+      <button
+        class="look-ahead-item-btn ui"
+        type="button"
+        title="Look ahead"
+        aria-label="Look ahead at this passage"
+        on:click={() => onLookAheadItem(item)}
+      >
         Look ahead &rarr;
       </button>
-    </footer>
-  {/if}
+    </article>
+  {/each}
 
 </div>
+
+<!-- ── LookAheadModal overlay ───────────────────────────────────────────────── -->
+{#if lookaheadItem}
+  <LookAheadModal
+    item={lookaheadItem}
+    on:confirm={onConfirmReveal}
+    on:cancel={onCancelReveal}
+  />
+{/if}
 
 <!-- ── CorrectionPanel overlay ──────────────────────────────────────────────── -->
 {#if correctionItem}
@@ -298,20 +301,23 @@
     border-radius: 2px;
   }
 
-  /* ─── Fog summary footer ──────────────────────────────────────────────────── */
+  /* ─── Fogged item ─────────────────────────────────────────────────────────── */
 
-  .fog-footer {
-    padding-block: var(--space-4);
-    color: var(--muted);
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-    border-top: 1px dashed var(--rule);
-    margin-top: var(--space-2);
+  .passage-item--fogged {
+    border-left: 2px solid var(--rule);
+    padding-left: var(--space-3);
   }
 
-  .look-ahead-btn {
+  /* Fog wrapper — needs position:relative for ::after pseudo-element. */
+  .fogged-text {
+    position: relative;
+  }
+
+  /* ─── Per-item look-ahead affordance (hover-revealed) ────────────────────── */
+
+  .look-ahead-item-btn {
+    display: block;
+    margin-top: var(--space-2);
     background: none;
     border: none;
     color: var(--accent);
@@ -321,9 +327,18 @@
     padding: 0;
     text-decoration: underline;
     text-underline-offset: 2px;
+    opacity: 0;
+    transition: opacity 100ms ease;
   }
 
-  .look-ahead-btn:hover {
-    color: var(--accent-soft);
+  .passage-item--fogged:hover .look-ahead-item-btn {
+    opacity: 1;
+  }
+
+  .look-ahead-item-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
 </style>
