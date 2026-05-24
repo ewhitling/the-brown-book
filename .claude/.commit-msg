@@ -1,1 +1,1 @@
-feat(web): app.css — palette, typography, layout primitives (TASK-019)
+feat(types): mirror Pydantic models to TypeScript and add assertSchema()
