@@ -1,1 +1,8 @@
-feat(timeline): add TimelinePanel.svelte — bar-chart timeline with fog + density levels
+feat(workshop): add PositionPicker.svelte (Scene 7) with cascading book/chapter dropdowns
+
+Replaces the inline number-input picker in Workshop with a dedicated
+PositionPicker component. Dropdowns are populated from the DB (books
+table + chapters filtered by selected book). Chapter list resets when
+the book changes. ESC and backdrop click close without saving; Update
+persists to localStorage, updates the URL pos param, closes the overlay,
+and triggers a panel refetch if a theory is set.

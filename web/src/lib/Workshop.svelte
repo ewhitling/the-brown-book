@@ -24,6 +24,7 @@
   import type { ReadingPosition, QueryResult } from './types';
   import CharactersPanel from './CharactersPanel.svelte';
   import TimelinePanel from './TimelinePanel.svelte';
+  import PositionPicker from './PositionPicker.svelte';
 
   // ─── Init from URL or localStorage ──────────────────────────────────────────
 
@@ -50,10 +51,6 @@
   let queryResult: QueryResult | null = null;
   let loading = false;
   let showPositionPicker = false;
-
-  // Inline picker state (minimal — full PositionPicker in a later task)
-  let pickerBookInput: string = String(position.book_id);
-  let pickerChapterInput: string = String(position.chapter_number);
 
   // Monotonic token — responses from superseded requests are discarded.
   let inflightToken = 0;
@@ -143,19 +140,22 @@
   }
 
   function onOpenPositionPicker(): void {
-    pickerBookInput = String(position.book_id);
-    pickerChapterInput = String(position.chapter_number);
     showPositionPicker = true;
   }
 
-  function onApplyPosition(): void {
-    const book = parseInt(pickerBookInput, 10);
-    const chapter = parseInt(pickerChapterInput, 10);
-    if (!book || !chapter || book < 1 || book > 5 || chapter < 1) return;
-    position = { book_id: book, chapter_number: chapter };
+  function onPositionApply(e: CustomEvent<ReadingPosition>): void {
+    position = e.detail;
     saveReadingPosition(position);
     showPositionPicker = false;
+    // Update pos param in URL immediately; query sync will re-sync if theory is set.
+    const params = new URLSearchParams(window.location.search);
+    params.set('pos', compact(position));
+    window.history.replaceState(null, '', `?${params.toString()}${window.location.hash}`);
     if (theory.trim()) scheduleQuery();
+  }
+
+  function onPositionClose(): void {
+    showPositionPicker = false;
   }
 
   function onRefineTheory(): void {
@@ -193,52 +193,13 @@
     </button>
   </div>
 
-  <!-- ── Position picker overlay ─────────────────────────────────────── -->
-  {#if showPositionPicker}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <div
-      class="picker-backdrop"
-      on:click={() => { showPositionPicker = false; }}
-    ></div>
-    <div class="picker-overlay ui" role="dialog" aria-label="Update reading position" aria-modal="true">
-      <h2 class="picker-heading">Reading position</h2>
-      <p class="picker-hint meta">
-        Everything past this point will be fogged.
-      </p>
-      <div class="picker-fields">
-        <label class="picker-label" for="picker-book">Book (1–5)</label>
-        <input
-          id="picker-book"
-          class="picker-input"
-          type="number"
-          min="1"
-          max="5"
-          bind:value={pickerBookInput}
-        />
-        <label class="picker-label" for="picker-chapter">Chapter</label>
-        <input
-          id="picker-chapter"
-          class="picker-input"
-          type="number"
-          min="1"
-          bind:value={pickerChapterInput}
-        />
-      </div>
-      <div class="picker-actions">
-        <button class="picker-apply ui" type="button" on:click={onApplyPosition}>
-          Update
-        </button>
-        <button
-          class="picker-cancel ui meta"
-          type="button"
-          on:click={() => { showPositionPicker = false; }}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  {/if}
+  <!-- ── Position picker overlay (Scene 7) ─────────────────────────── -->
+  <PositionPicker
+    {position}
+    show={showPositionPicker}
+    on:apply={onPositionApply}
+    on:close={onPositionClose}
+  />
 
   <!-- ── Panel area ──────────────────────────────────────────────────── -->
 
@@ -424,102 +385,6 @@
   .position-chip:hover {
     border-color: var(--accent);
     color: var(--accent);
-  }
-
-  /* ─── Position picker overlay ───────────────────────────────────────────── */
-
-  .picker-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(26, 26, 26, 0.3);
-    z-index: 40;
-  }
-
-  .picker-overlay {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 50;
-    background: var(--paper);
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: var(--space-8);
-    width: min(24rem, 90vw);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
-  }
-
-  .picker-heading {
-    font-size: var(--text-xl);
-    margin-bottom: var(--space-2);
-  }
-
-  .picker-hint {
-    margin-bottom: var(--space-6);
-  }
-
-  .picker-fields {
-    display: grid;
-    grid-template-columns: 6rem 1fr;
-    gap: var(--space-3);
-    align-items: center;
-    margin-bottom: var(--space-6);
-  }
-
-  .picker-label {
-    font-size: var(--text-sm);
-    color: var(--muted);
-  }
-
-  .picker-input {
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-    background: var(--paper);
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
-    color: var(--ink);
-    width: 100%;
-  }
-
-  .picker-input:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-  }
-
-  .picker-actions {
-    display: flex;
-    gap: var(--space-3);
-    align-items: center;
-  }
-
-  .picker-apply {
-    padding: var(--space-2) var(--space-6);
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 80ms ease;
-  }
-
-  .picker-apply:hover {
-    background: var(--accent-soft);
-  }
-
-  .picker-cancel {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: var(--text-sm);
-    color: var(--muted);
-    padding: 0;
-  }
-
-  .picker-cancel:hover {
-    color: var(--ink);
   }
 
   /* ─── Empty state ───────────────────────────────────────────────────────── */
