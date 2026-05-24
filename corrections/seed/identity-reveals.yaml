@@ -1,0 +1,158 @@
+# corrections/seed/identity-reveals.yaml
+#
+# Curated revealed_at overrides for identity-reveal spoilers.
+#
+# Each entry is a factual_fix correction targeting revealed_at_book or
+# revealed_at_chapter on a notable_detail or factual_claim row. The default
+# revealed_at is the chapter where the text first appears; these overrides push
+# it to the chapter where the true significance of the fact is first understood.
+#
+# Applied automatically by apply_corrections (alongside user-submitted
+# corrections in corrections/*.yaml).
+#
+# Format: YAML list of factual_fix corrections.
+# old_value must match the current DB value; if the pipeline is rebuilt and the
+# source chapter changes, this file must be updated to match.
+
+# ── Dorcas: resurrection from the lake ──────────────────────────────────────
+#
+# Dorcas is drawn from the lake in The Shadow of the Torturer and behaves as
+# though she has no past. Her true nature — dead for decades, raised by the
+# Claw — is not confirmed until The Citadel of the Autarch (B4C34). The locket
+# that proves she is Ouen's mother (and thus Severian's ancestor) appears in
+# B4C37. Three early observations foreshadow the reveal and should be hidden
+# from readers who have not yet reached those chapters.
+
+# notable_details id=228, B1C23
+# "Hildegrin suggests Dorcas might have been in a 'com'er' (coma) and thrown
+# in water"
+- type: factual_fix
+  target_type: notable_detail
+  target_id: 228
+  field: revealed_at_book
+  old_value: "1"
+  new_value: "4"
+  rationale: >
+    Hildegrin's coma/water hypothesis in B1C23 directly foreshadows Dorcas
+    having drowned and lain dead at the lake bottom for decades before the
+    Claw raised her (confirmed B4C34) and the Ouen locket reveals she is
+    Severian's ancestor (B4C37).
+
+- type: factual_fix
+  target_type: notable_detail
+  target_id: 228
+  field: revealed_at_chapter
+  old_value: "23"
+  new_value: "37"
+  rationale: >
+    Partner correction: chapter index for the same entry (grandmother
+    reveal at B4C37 is the fuller resolution of the coma-and-water hint).
+
+# notable_details id=277, B1C28
+# "Dorcas becomes emotional and claims not to remember when told she's too
+# young to have had a child who could write the note"
+- type: factual_fix
+  target_type: notable_detail
+  target_id: 277
+  field: revealed_at_book
+  old_value: "1"
+  new_value: "4"
+  rationale: >
+    The note is Ouen's; the confusion about whether Dorcas is old enough to
+    have a grown son only resolves at the B4C37 locket scene, where Ouen
+    confirms Dorcas as his mother.
+
+- type: factual_fix
+  target_type: notable_detail
+  target_id: 277
+  field: revealed_at_chapter
+  old_value: "28"
+  new_value: "37"
+  rationale: >
+    Partner correction: chapter index for the same entry.
+
+# notable_details id=320, B1C32
+# "Dorcas remembers only being in the water before meeting Severian, with
+# everything before that like 'a vision shattered to pieces'"
+- type: factual_fix
+  target_type: notable_detail
+  target_id: 320
+  field: revealed_at_book
+  old_value: "1"
+  new_value: "4"
+  rationale: >
+    'Being in the water' is her memory of being dead at the bottom of the
+    lake; the significance is confirmed when the Claw's reanimation is
+    stated explicitly in B4C34.
+
+- type: factual_fix
+  target_type: notable_detail
+  target_id: 320
+  field: revealed_at_chapter
+  old_value: "32"
+  new_value: "34"
+  rationale: >
+    Partner correction: chapter index aligned to the reanimation confirmation
+    (B4C34 is earlier than the locket scene and is the tighter reveal for
+    this particular detail).
+
+# ── The Autarch: composite identity ─────────────────────────────────────────
+#
+# The Autarch is revealed in B4C27 to be 'a thousand in one body' — a ruler
+# who carries the absorbed memories and personalities of all previous
+# Autarchs. Several observations made earlier in Book 4 hint at this without
+# naming it, and should not be visible to readers who have not yet reached
+# B4C27.
+
+# factual_claims id=1305, B4C9
+# "The Autarch is a capon"
+- type: factual_fix
+  target_type: factual_claim
+  target_id: 1305
+  field: revealed_at_chapter
+  old_value: "9"
+  new_value: "27"
+  rationale: >
+    The Autarch's capon status hints at the composite body that cannot
+    father children in the normal sense; its meaning is only clear after
+    the B4C27 revelation that the Autarch is many souls in one body.
+
+# notable_details id=1272, B4C24
+# "The Autarch addresses someone as 'Legion' when speaking to the
+# woman-cats"
+- type: factual_fix
+  target_type: notable_detail
+  target_id: 1272
+  field: revealed_at_chapter
+  old_value: "24"
+  new_value: "27"
+  rationale: >
+    Calling the woman-cats 'Legion' is the Autarch's self-aware allusion
+    to his own composite nature, which is explained three chapters later
+    in B4C27.
+
+# factual_claims id=1467, B4C24
+# "The Autarch appoints himself as several minor officials of his court"
+- type: factual_fix
+  target_type: factual_claim
+  target_id: 1467
+  field: revealed_at_chapter
+  old_value: "24"
+  new_value: "27"
+  rationale: >
+    The Autarch populating multiple court roles himself is inexplicable
+    until B4C27 clarifies that he contains many former identities and
+    memories.
+
+# factual_claims id=1479, B4C24
+# "The Autarch claims to have been in a thousand battles"
+- type: factual_fix
+  target_type: factual_claim
+  target_id: 1479
+  field: revealed_at_chapter
+  old_value: "24"
+  new_value: "27"
+  rationale: >
+    The claim of a thousand battles is composite memory across all
+    predecessor Autarchs; readers cannot understand this until B4C27
+    explains the transfer-of-minds mechanism.
