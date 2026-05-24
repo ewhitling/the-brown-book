@@ -14,6 +14,7 @@ web: ## Build the SPA into web/dist/
 	cd web && npm ci && npm run build
 
 build: apply-corrections web ## Apply corrections + build the SPA (CI target)
+	scripts/check-size-budgets.sh
 
 test: ## Run Python tests
 	uv run pytest tests/
