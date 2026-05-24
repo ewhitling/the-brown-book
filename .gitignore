@@ -9,8 +9,14 @@ __pycache__/
 .env.*
 !.env.example
 
-# ao orchestrator bookkeeping
+# Personal workflow — kept out of the public repo
 .ao/
+.claude/
+ao
+ao.yaml
+tasks.yaml
+JOURNAL.md
+ADR.md
 
 # Web build artifacts
 web/node_modules/

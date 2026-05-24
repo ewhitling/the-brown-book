@@ -1,3 +1,0 @@
-pipeline: [test-writer, builder, reviewer, committer]
-max_review_attempts: 4
-feature: "brown-book-v1"

@@ -1,7 +1,0 @@
-fix(corrections): resolve old_value read-only spec/implementation mismatch
-
-Drop the false "auto-prefilled, read-only" claim for the factual_fix
-old_value field — PassageItem carries no per-field DB values, so
-auto-prefill is not possible. Update JSDoc and form label/hint to make
-clear the user must enter the current DB value manually, and explain
-why the safety guard matters.
