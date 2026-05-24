@@ -1,65 +1,13 @@
 sprint: "brown-book-v1"
-description: "First buildable version of The Brown Book — the-brown-book public repo side. Adds the SPA, the corrections workflow, and the deploy pipeline. Assumes analysis-botns has completed TASK-001..TASK-010 (see analysis-botns/tasks.yaml) and that `make publish` has populated this repo's data/, core/, corrections/seed/. This file is authored in analysis-botns and ships to the-brown-book at TASK-011 as `tasks.yaml`."
+description: "First buildable version of The Brown Book — the-brown-book public repo. Adds the SPA, the corrections workflow, and the deploy pipeline. TASK-011 (repo bootstrap) and TASK-012 (first sync) were done manually before ao took over; their history lives in commits 9de9869 + 6c21faf and is summarized in JOURNAL.md."
 epic_issue: null
 
-# All tasks run in the-brown-book. Task IDs continue from analysis-botns
-# (TASK-011..TASK-030) for cross-file traceability — ao should not assume
-# IDs start at 001. Default pipeline overrides where tests/review don't add
-# value (scaffolding, config, CSS-heavy components).
+# Task IDs continue from analysis-botns (start at TASK-013) for
+# cross-file traceability with SPEC.md and the architect's plan — ao
+# should not assume IDs start at 001. Default pipeline overrides where
+# tests/review don't add value (scaffolding, config, CSS-heavy components).
 
 tasks:
-
-  # ────────────────────────────────────────────────────────────────────
-  # B. Bootstrap + cross-repo sync (continued from analysis-botns)
-  # ────────────────────────────────────────────────────────────────────
-
-  - id: TASK-011
-    title: Create the-brown-book public repo skeleton
-    type: backend
-    description: |
-      One-time manual setup of the new public GitHub repo.
-        - github.com/ewhitling/the-brown-book (public visibility)
-        - Clone to ../the-brown-book (relative to analysis-botns checkout)
-        - Initial commit with:
-          - pyproject.toml (deps: pydantic, pyyaml)
-          - uv.lock
-          - .gitignore (web/dist, web/node_modules, web/static/botns.db,
-            __pycache__, .venv)
-          - .env.example (empty)
-          - README.md (public intro, links back to analysis-botns for pipeline)
-          - CONTRIBUTING.md (skeleton — filled out by TASK-030)
-          - Makefile (skeleton with apply-corrections + web + build placeholders)
-          - empty directories: data/, corrections/, corrections/seed/, core/, web/
-          - PRD.md, DESIGN.md, SPEC.md copied from analysis-botns
-          - This file (tasks.brownbook.yaml) copied as tasks.yaml
-          - ao.yaml copied from analysis-botns
-    acceptance_criteria:
-      - "the-brown-book exists on GitHub, public visibility"
-      - "Initial commit on main contains the skeleton above"
-      - "README explains: what this is, link to analysis-botns, placeholder for live tool URL"
-      - "tasks.yaml + ao.yaml present so ao can be invoked here"
-    depends_on: []
-    pipeline: [builder, committer]
-
-  - id: TASK-012
-    title: First make publish — initial sync into the-brown-book
-    type: backend
-    description: |
-      Run `make publish` from analysis-botns (requires TASK-010 there to be
-      complete). Verify the-brown-book gets:
-        data/botns.db, core/models/, core/apply_corrections.py,
-        core/horizon.py, corrections/seed/
-      Run apply_corrections in the-brown-book to verify the vendored layer
-      works against the vendored DB. Leave the synced files in the working
-      tree for the committer agent (do NOT run `git commit` from the builder).
-      `make publish` is run manually before this task; this task validates
-      the result and lets ao's committer agent land it.
-    acceptance_criteria:
-      - "the-brown-book main branch contains the synced files"
-      - "uv run python -m core.apply_corrections runs successfully here"
-      - "uv run pytest tests/ passes (after copying tests from analysis-botns or writing minimal smoke test)"
-    depends_on: [TASK-011]
-    pipeline: [builder, committer]
 
   # ────────────────────────────────────────────────────────────────────
   # C. SPA scaffold + early deploy validation
@@ -87,7 +35,7 @@ tasks:
       - "npm run build produces web/dist/ with the static bundle"
       - "Vite config copies data/botns.db into web/static/botns.db at build time"
       - "Vite config supports importing .sql files via ?raw"
-    depends_on: [TASK-012]
+    depends_on: []
     pipeline: [builder, reviewer, committer]
 
   - id: TASK-014
