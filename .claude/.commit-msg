@@ -1,1 +1,1 @@
-test(storage+position): add failing tests for TASK-018 storage and position modules
+feat(entry): fix books query to use correct PK column name
