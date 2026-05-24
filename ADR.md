@@ -170,3 +170,13 @@ A hypothesis is tagged interpretive per ADR 1.1: the scoring prompt is instructe
 **Decision** — Plain Svelte 4 + Vite + TypeScript. Cloudflare Pages with its GitHub integration for deploys + PR previews. No SvelteKit (no SSR needed; three routes don't justify file-based routing). No service worker in v1 (the whole app is static, so offline support via SW is a v1.1 nice-to-have).
 
 **Consequences** — Small bundle (~50KB Svelte runtime + app code), reactive panel reflow is idiomatic, no SSR overhead. Cloudflare's Brotli shrinks the DB asset meaningfully on first load. PR previews give correction reviewers a live URL per PR — they can see the merged result before approving. Custom domain remains a v1.1 concern; `<project>.pages.dev` is fine for first ship. The hand-mirroring of Pydantic → TS types (called out in ADR 10.0) is the main maintenance tax — accepted because it's small and `assertSchema()` catches drift.
+
+## ADR 11.1: Look-ahead reveals all fogged passages inline, no per-item modal
+**Date:** 2026-05-23
+**Status:** Accepted
+
+**Context** — TASK-022 required a decision on how "Look ahead" works in PassagesPanel: (a) a per-item confirmation modal (DESIGN.md Scene 5 sketched this) or (b) batch inline expansion of all fogged items with a single click.
+
+**Decision** — Inline batch expansion. Clicking "Look ahead →" in the fog footer expands all past-horizon items that are already loaded in the panel, immediately records them all to `bb:v1:revealed` in localStorage, and renders them with the permanent ↪ tag. No modal, no per-item confirmation.
+
+**Consequences** — Simpler code and lower click cost. The trade-off is that users cannot peek at one item without revealing all loaded fogged items. This is acceptable for v1: the panel shows at most 50 results (topN), and users who look ahead generally want the full picture. A per-item reveal with individual confirm modals can be added in v1.1 if there is reader demand. The batch behavior is honest: the ↪ tag appears on every revealed item so readers know exactly what they peeked at.

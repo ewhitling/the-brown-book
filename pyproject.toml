@@ -11,3 +11,8 @@ dependencies = [
 
 [tool.uv.sources]
 ao = { git = "https://github.com/ewhitling/eww-ao.git" }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

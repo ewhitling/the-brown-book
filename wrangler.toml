@@ -1,0 +1,22 @@
+name = "the-brown-book"
+pages_build_output_dir = "web/dist"
+
+# CF Pages Configuration
+# ─────────────────────
+# Build command (set in Pages dashboard):     ./build.sh
+# Build output directory:                    web/dist
+# Node.js version (set in Pages dashboard):  20
+#
+# Environment variables (set in Pages dashboard):
+#   VITE_REPO_OWNER    = ewhitling
+#   VITE_REPO_NAME     = the-brown-book
+#   VITE_DEPLOY_ENV    = prod                (preview env overrides to "preview")
+#   ANTHROPIC_API_KEY  = <secret>            (defensive; apply-corrections is deterministic)
+#
+# The build process:
+# 1. ./build.sh installs uv if needed
+# 2. make build runs:
+#    - apply-corrections (uv run python -m core.apply_corrections)
+#    - web (copy db + npm ci + npm run build)
+#    - check-size-budgets.sh (fails build if db > 25MB or bundle > 6MB)
+# 3. Output appears in web/dist/
